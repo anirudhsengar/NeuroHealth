@@ -82,5 +82,5 @@ Pending the GSoC 2026 engagement, NeuroHealth will be expanded to encompass:
 
 **Anirudh Singh Sengar**
 - [GitHub](https://github.com/anirudhsengar)
-- [LinkedIn](https://linkedin.com/in/anirudhsengar)
+- [LinkedIn](https://www.linkedin.com/in/anirudh-sengar-21b9a722a/)
 - [Website](https://anirudhsengar.dev)
