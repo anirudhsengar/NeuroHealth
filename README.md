@@ -1,145 +1,86 @@
-# NeuroHealth: AI-Powered Health Assistant (RAG PoC)
+# NeuroHealth
+**AI-Powered Health Assistant with LLM-Driven Reasoning and RAG Architecture**
 
-A production-style micro-prototype of a privacy-conscious medical triage chatbot using Retrieval-Augmented Generation (RAG).
+![NeuroHealth UI Preview](dashboard.png)
 
-- UI: Streamlit chat interface
-- Orchestration: LangChain
-- Vector DB: FAISS (local)
-- Embeddings: GitHub Models (`openai/text-embedding-3-large`)
-- LLM: OpenAI (`gpt-4o`)
+[![GSoC](https://img.shields.io/badge/Google_Summer_of_Code-2026-FABB41?logo=google&logoColor=white)](https://summerofcode.withgoogle.com/)
+[![Organization](https://img.shields.io/badge/UCSC_OSPO-OSRE_2026-1A365D?logo=opensourceinitiative&logoColor=white)](https://ucsc-ospo.github.io/osre/)
 
-## Features
+> **Note:** This repository contains the **Working Prototype** supporting the GSoC 2026 proposal for **UCSC OSPO / OSRE 2026**.
 
-- Conversational RAG over a local medical guideline file.
-- Strict context-only response policy via system prompt.
-- Deterministic fallback for missing knowledge:
-  - `I do not have enough information in my current medical database to answer this`
-- Mandatory medical disclaimer appended to every response.
-- FAISS index and embedding client cached with `st.cache_resource`.
-- Clear error handling for missing files, missing keys, and API failures.
+## Overview
 
-## Project Structure
+Global healthcare systems face an accessibility-quality paradox. While patients increasingly turn to unregulated digital sources, existing tools like unconstrained LLMs hallucinate medical advice, and rule-based symptom checkers lack contextual reasoning. 
 
-```text
-NeuroHealth/
-├── app.py
-├── requirements.txt
-├── .env.example
-├── data/
-│   └── medical_guidelines.txt
-└── docs/
-    └── architecture.mmd
-```
+**NeuroHealth** bridges this gap. It is a **LangGraph-orchestrated multi-node reasoning architecture** that combines the contextual reasoning and natural language fluency of Large Language Models with clinical grounding, safety guarantees, and personalization.
 
-## Prerequisites
+## Core Architecture
 
-- Python 3.11+
-- API credentials:
-  - `OPENAI_API_KEY`
-  - `GITHUB_TOKEN` (for GitHub Models embeddings)
+The system decomposes health inquiries into a Directed Acyclic Graph (DAG) of specialized processing stages to ensure safe and accurate responses. The prototype establishes three key guarantees:
 
-## Setup
+1. **Safety-First Routing**: A dedicated zero-temperature Urgency Assessor node intercepts life-threatening presentations (e.g., chest pain, stroke symptoms) *before* knowledge retrieval, ensuring immediate emergency guidance.
+2. **Grounded Generation**: Non-emergency responses strictly utilize **ChromaDB** to retrieve validated clinical guidelines (RAG), minimizing free-form hallucination.
+3. **Personalized Reasoning**: User profiles mapping medical constraints, allergies, and dietary preferences are injected directly into the LLM context window to provide personalized, clinically bounded recommendations.
 
-### Option A: Existing `.venv` + `uv` (recommended)
+### LangGraph State Machine Nodes
 
-```bash
-uv pip install --python .venv/bin/python -r requirements.txt
-cp .env.example .env
-```
+- **Profile Loader**: Injects the user's medical profile and constraints into the state.
+- **Urgency Assessor**: A binary classifier routing to `EMERGENCY` (bypassing RAG) or `SAFE`.
+- **RAG Retriever**: Embeds inquiries using OpenAI's `text-embedding-3-small` and performs vector search against clinical data.
+- **Response Synthesizer**: Constructs a custom recommendation leveraging system prompts, retrieved data, constraints, and conversational context via GPT-4o (GitHub Models API).
 
-### Option B: Standard `venv` + `pip`
+## Repository Structure
+
+The project follows a layered, decoupled design:
+
+- **[`frontend/`](./frontend)**: Presentation Layer. A modern conversational UI built with **Next.js (React 19)**, **Tailwind CSS 4**, and **Framer Motion** for real-time reasoning chain visualization.
+- **[`backend/`](./backend)**: API & Engine Layer. Powered by **FastAPI** and **Python**, containing the LangGraph state machine, RAG pipeline, and urgency triage routing.
+- **[`chroma_db/`](./chroma_db)**: Data Layer. Persistent SQLite database for **ChromaDB**, holding embedded medical knowledge and guidelines for precise RAG lookups.
+
+## Quick Start
+
+### Prerequisites
+- Node.js (v18+)
+- Python (v3.10+)
+- `GITHUB_TOKEN` (for prototyping inference via GitHub Models)
+
+### 1. Initialize Backend Engine
+Navigate to the `backend` directory to configure the FastAPI server and LangGraph engine:
 
 ```bash
+cd backend
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements.txt
-cp .env.example .env
+pip install -r requirements.txt
+
+# Configure your token for GitHub Models
+export GITHUB_TOKEN="your_fine_grained_personal_access_token"
+
+# Launch backend cluster on port 8000
+fastapi dev main.py
 ```
+*The API will be available at `http://localhost:8000`.*
 
-## Environment Variables
-
-Set these in `.env`:
+### 2. Launch Client Interface
+Navigate to the `frontend` directory to start the Next.js presentation instance:
 
 ```bash
-OPENAI_API_KEY=your_openai_api_key_here
-GITHUB_TOKEN=your_github_token_here
+cd frontend
+npm install
+npm run dev
 ```
+*The application will be accessible at `http://localhost:3000`.*
 
-Optional:
+## Future GSoC Deliverables
 
-```bash
-GITHUB_MODELS_ENDPOINT=https://models.github.ai/inference
-OPENAI_BASE_URL=
-```
+Pending the GSoC 2026 engagement, NeuroHealth will be expanded to encompass:
+- **Extended Agentic Engine**: 10+ reasoning nodes including Intent Recognizer, Symptom Extractor, Medication Checker, and Clarification Agent.
+- **Hypothetical Document Embeddings (HyDE)**: Pre-computation of ideal answers to maximize retrieval precision.
+- **Evaluation Framework**: Standardized test suite against 200+ clinical vignettes mapped to clinician reviews.
 
-## Run
+## Author
 
-```bash
-./.venv/bin/streamlit run app.py
-```
-
-Then open the local URL shown in terminal (typically `http://localhost:8501`).
-
-## Example User Queries
-
-- `I have a fever of 38.5C for 2 days with body aches. What should I do?`
-- `I twisted my ankle and it is swollen, but I can still walk. What is the triage advice?`
-- `I have sneezing and itchy eyes for one week. Is this seasonal allergy and what home care is suggested?`
-
-## UI Preview
-
-Sample chat run in Streamlit for:
-`I have a fever of 38.5C for 2 days with body aches. What should I do?`
-
-![NeuroHealth Streamlit UI sample query and response](image.png)
-
-## Architecture Diagram
-
-Source file: [`docs/architecture.mmd`](docs/architecture.mmd)
-
-```mermaid
-flowchart TD
-    U[User]
-    UI[Streamlit UI<br/>st.chat_input / st.chat_message]
-    SS[Session State<br/>messages history]
-    APP[app.py Orchestration]
-    TXT[data/medical_guidelines.txt]
-    SPLIT[RecursiveCharacterTextSplitter<br/>chunk_size=700 overlap=120]
-    EMB[GitHub Models Embeddings<br/>openai/text-embedding-3-large]
-    FAISS[(FAISS Vector Index<br/>cached via st.cache_resource)]
-    RET[Retriever<br/>similarity search k=4]
-    PROMPT[Strict System Prompt<br/>context-only + fallback + disclaimer]
-    LLM[OpenAI Chat Model<br/>gpt-4o]
-    RESP[Assistant Response<br/>+ mandatory disclaimer]
-
-    U --> UI
-    UI --> SS
-    UI --> APP
-    APP --> TXT
-    TXT --> SPLIT
-    SPLIT --> EMB
-    EMB --> FAISS
-    APP --> RET
-    FAISS --> RET
-    SS --> PROMPT
-    RET --> PROMPT
-    UI --> PROMPT
-    PROMPT --> LLM
-    LLM --> RESP
-    RESP --> UI
-```
-
-## Request Flow (High Level)
-
-1. User sends a symptom question in Streamlit chat.
-2. App builds/reuses local FAISS index from `data/medical_guidelines.txt`.
-3. Retriever pulls top-`k` relevant chunks.
-4. Prompt injects retrieved context + chat history with strict constraints.
-5. `gpt-4o` generates answer.
-6. App enforces final disclaimer and returns response.
-
-## Notes
-
-- This is a preliminary assistant for educational/demo purposes.
-- It is not a medical diagnostic system.
-- Always consult a licensed clinician for real medical decisions.
+**Anirudh Singh Sengar**
+- [GitHub](https://github.com/anirudhsengar)
+- [LinkedIn](https://linkedin.com/in/anirudhsengar)
+- [Website](https://anirudhsengar.dev)
